@@ -65,7 +65,7 @@ async def main(request: Request):
             "response": {"text": "Скажите что-нибудь — я помогу!", "end_session": False}
         }
 
-    logger.info(f"Calling Qwen with model: qwen/qwen3-next-80b-a3b-instruct:free, text length: {len(user_text)}")
+    logger.info(f"Calling Qwen with model: nvidia/nemotron-3-super-120b-a12b:free, text length: {len(user_text)}")
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(
@@ -77,7 +77,7 @@ async def main(request: Request):
                 },
                 json={
                     # 3. Бесплатная модель Qwen 
-                    "model": "qwen/qwen3-next-80b-a3b-instruct:free", 
+                    "model": "nvidia/nemotron-3-super-120b-a12b:free", 
                     "messages": [{"role": "user", "content": user_text}],
                 },
             )
