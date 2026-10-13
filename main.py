@@ -9,6 +9,7 @@ app = FastAPI()
 
 API_URL = os.getenv("API_URL")
 API_KEY = os.getenv("API_KEY")
+MODEL_NAME = os.getenv("AI_MODEL_NAME")
 
 if not API_URL:
     raise RuntimeError("API_URL не задан в переменных окружения")
@@ -77,7 +78,7 @@ async def main(request: Request):
                 },
                 json={
                     # УКАЖИ ЗДЕСЬ РЕАЛЬНО БЕСПЛАТНУЮ МОДЕЛЬ ИЗ OPENROUTER
-                    "model": "qwen/qwen-2.5-14b-instruct",
+                    "model": MODEL_NAME,
                     "messages": [{"role": "user", "content": user_text}],
                 },
             )
