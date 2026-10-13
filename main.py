@@ -10,6 +10,8 @@ app = FastAPI()
 API_URL = os.getenv("API_URL")
 API_KEY = os.getenv("API_KEY")
 
+if not API_URL:
+    raise RuntimeError("API_URL не задан в переменных окружения")
 if not API_KEY:
     raise RuntimeError("API_KEY не задан в переменных окружения")
 
@@ -39,7 +41,6 @@ async def main(request: Request):
         body = json.loads(raw_body)
     except json.JSONDecodeError as e:
         logger.error("Invalid JSON: %s", e)
-        # body может быть не определён, поэтому не используем его
         return {
             "version": "1.0",
             "session": None,
@@ -68,15 +69,15 @@ async def main(request: Request):
 
     logger.info(f"Calling AI, text length: {len(user_text)}")
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with httpx.AsyncClient(timeout=5.0) as client:  # уменьшили таймаут
             resp = await client.post(
                 API_URL,
                 headers={
                     "Authorization": f"Bearer {API_KEY}",
                 },
                 json={
-                    # Замени на реальную бесплатную модель из каталога OpenRouter
-                    "model": "qwen/qwen-2.5-plus",
+                    # УКАЖИ ЗДЕСЬ РЕАЛЬНО БЕСПЛАТНУЮ МОДЕЛЬ ИЗ OPENROUTER
+                    "model": "qwen/qwen-2.5-14b-instruct",
                     "messages": [{"role": "user", "content": user_text}],
                 },
             )
@@ -85,10 +86,11 @@ async def main(request: Request):
 
         choices = answer_data.get("choices", [])
         if not choices:
-            raise ValueError("OpenRouter returned empty choices")
-
-        answer = choices[0]["message"]["content"]
-        logger.info("OpenRouter success")
+            logger.warning("Empty choices from LLM")
+            answer = "Сейчас не удалось получить ответ от модели. Попробуйте позже."
+        else:
+            answer = choices[0]["message"]["content"]
+            logger.info("OpenRouter success")
 
     except httpx.TimeoutException:
         logger.error("OpenRouter timeout")
@@ -99,6 +101,8 @@ async def main(request: Request):
             answer = "Ошибка авторизации. Проверьте API‑ключ."
         elif e.response.status_code == 404:
             answer = "Модель не найдена. Проверьте название модели."
+        elif e.response.status_code == 402:
+            answer = "Требуется оплата. Модель недоступна в бесплатном режиме."
         else:
             answer = "Сейчас не удаётся получить ответ. Попробуйте позже."
     except Exception as e:
@@ -109,7 +113,8 @@ async def main(request: Request):
         "version": body.get("version", "1.0"),
         "session": body.get("session"),
         "response": {
-            "end_session": False,
-            "text": answer
+            "text": answer,
+            "tts": answer,           # голос
+            "end_session": False
         }
     }
