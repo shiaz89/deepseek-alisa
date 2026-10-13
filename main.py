@@ -69,7 +69,7 @@ async def main(request: Request):
 
     logger.info(f"Calling AI, text length: {len(user_text)}")
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:  # уменьшили таймаут
+        async with httpx.AsyncClient(timeout=25.0) as client:  # уменьшили таймаут
             resp = await client.post(
                 API_URL,
                 headers={
