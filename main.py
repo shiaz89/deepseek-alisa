@@ -77,7 +77,7 @@ async def main(request: Request):
                 },
                 json={
                     # 3. Бесплатная модель Qwen 
-                    "model": "qwen/qwen3-235b-a22b:free", 
+                    "model": "qwen/qwen3.6-plus-preview:free", 
                     "messages": [{"role": "user", "content": user_text}],
                 },
             )
