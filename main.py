@@ -7,12 +7,14 @@ import httpx
 
 app = FastAPI()
 
-DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+# 1. URL для бесплатного Qwen через OpenRouter 
+QWEN_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-if not DEEPSEEK_API_KEY:
-    # Это сразу остановит старт, если ключ забыли добавить
-    raise RuntimeError("DEEPSEEK_API_KEY не задан в переменных окружения")
+# 2. Ключ от OpenRouter
+QWEN_API_KEY = os.getenv("QWEN_API_KEY")
+
+if not QWEN_API_KEY:
+    raise RuntimeError("QWEN_API_KEY не задан в переменных окружения")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -63,18 +65,22 @@ async def main(request: Request):
             "response": {"text": "Скажите что-нибудь — я помогу!", "end_session": False}
         }
 
-    logger.info(f"Calling DeepSeek with model: deepseek-v3, text length: {len(user_text)}")
+    logger.info(f"Calling Qwen with model: qwen/qwen3-235b-a22b:free, text length: {len(user_text)}")
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(
-                DEEPSEEK_API_URL,
-                headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}"},
+                QWEN_API_URL,
+                headers={
+                    "Authorization": f"Bearer {QWEN_API_KEY}",
+                    "HTTP-Referer": "https://your-site.com",  # Опционально, но рекомендуется OpenRouter
+                    "X-Title": "Alice Skill",                   # Опционально
+                },
                 json={
-                    "model": "deepseek-v3",
+                    # 3. Бесплатная модель Qwen 
+                    "model": "qwen/qwen3-235b-a22b:free", 
                     "messages": [{"role": "user", "content": user_text}],
                 },
             )
-            # Если 4xx/5xx — тут вылетит исключение
             resp.raise_for_status()
             answer_data = resp.json()
 
