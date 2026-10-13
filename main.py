@@ -1,27 +1,28 @@
 import os
 import json
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse 
-import requests
+from fastapi.responses import JSONResponse
+import httpx
 
 app = FastAPI()
 
 DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 
+if not DEEPSEEK_API_KEY:
+    raise RuntimeError("DEEPSEEK_API_KEY не задан в переменных окружения")
+
 
 @app.get("/")
 @app.head("/")
 async def health_check():
     return JSONResponse(content={"status": "ok"}, status_code=200)
-    
+
 
 @app.post("/")
 async def main(request: Request):
-    # Читаем тело как байты, чтобы избежать падения на пустом запросе
     raw_body = await request.body()
 
-    # Если тело пустое или не JSON — отвечаем стандартным ответом для ping
     if not raw_body:
         return {
             "version": "1.0",
@@ -37,38 +38,57 @@ async def main(request: Request):
         return {
             "version": "1.0",
             "response": {
-                "text": "ok",
+                "text": "Не удалось прочитать запрос",
                 "end_session": False
             }
         }
 
-    # Извлекаем текст запроса пользователя
-    user_text = body["request"]["original_utterance"]
+    user_text = body.get("request", {}).get("original_utterance", "").strip()
 
-    # Если пришёл ping — сразу отвечаем, не дёргая DeepSeek
+    # Ping
     if user_text.lower() == "ping":
         return {
             "version": body.get("version", "1.0"),
+            "session": body.get("session"),
             "response": {
                 "text": "ok",
                 "end_session": False
             }
         }
 
+    if not user_text:
+        return {
+            "version": body.get("version", "1.0"),
+            "session": body.get("session"),
+            "response": {
+                "text": "Скажите что-нибудь — я с радостью помогу!",
+                "end_session": False
+            }
+        }
+
     # Запрос к DeepSeek
     try:
-        response = requests.post(
-            DEEPSEEK_API_URL,
-            headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}"},
-            json={
-                "model": "deepseek-chat",
-                "messages": [{"role": "user", "content": user_text}],
-            },
-            timeout=30
-        )
-        answer = response.json()["choices"][0]["message"]["content"]
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                DEEPSEEK_API_URL,
+                headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}"},
+                json={
+                    "model": "deepseek-chat",
+                    "messages": [{"role": "user", "content": user_text}],
+                },
+            )
+            resp.raise_for_status()
+            answer_data = resp.json()
+
+        choices = answer_data.get("choices", [])
+        if not choices:
+            raise ValueError("Пустой ответ от DeepSeek")
+
+        answer = choices[0]["message"]["content"]
+
     except Exception as e:
-        answer = f"Ошибка при обращении к DeepSeek: {e}"
+        # Лучше логировать e, а пользователю — нейтральный текст
+        answer = "Сейчас не удаётся получить ответ. Попробуйте позже."
 
     return {
         "version": body.get("version", "1.0"),
