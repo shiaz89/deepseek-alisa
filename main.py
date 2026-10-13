@@ -9,6 +9,12 @@ DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 
 
+@app.get("/")
+@app.head("/")
+async def health_check():
+    return JSONResponse(content={"status": "ok"}, status_code=200)
+    
+
 @app.post("/")
 async def main(request: Request):
     # Читаем тело как байты, чтобы избежать падения на пустом запросе
