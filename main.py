@@ -113,5 +113,3 @@ async def main(request: Request):
             "text": answer
         }
     }
-
-    }
